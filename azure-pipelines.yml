@@ -1,19 +1,46 @@
-# Starter pipeline
-# Start with a minimal pipeline that you can customize to build and deploy your code.
-# Add steps that build, run tests, deploy, and more:
-# https://aka.ms/yaml
-
 trigger:
-- master
+  branches:
+    include:
+      - master # Triggers the pipeline on pushes to the master branch
 
 pool:
-  vmImage: ubuntu-latest
+  vmImage: 'windows-latest' # Specifies the virtual machine image for the agent
 
-steps:
-- script: echo Hello, world!
-  displayName: 'Run a one-line script'
+stages:
+- stage: Build
+  displayName: 'Build Stage'
+  jobs:
+  - job: BuildJob
+    displayName: 'Build C# Project'
+    steps:
+    - task: UseDotNet@2
+      displayName: 'Install .NET SDK'
+      inputs:
+        packageType: 'sdk'
+        version: '8.x' # Installs the latest .NET 8 SDK
+        installationPath: '$(Agent.ToolsDirectory)/dotnet'
 
-- script: |
-    echo Add other tasks to build, test, and deploy your project.
-    echo See https://aka.ms/yaml
-  displayName: 'Run a multi-line script'
+    - script: |
+        dotnet restore
+        dotnet build --configuration Release
+      displayName: 'Restore and Build Solution'
+
+    - task: DotNetCoreCLI@2
+      displayName: 'Run Tests'
+      inputs:
+        command: 'test'
+        projects: '**/*Tests.csproj' # Runs tests in projects ending with Tests.csproj
+
+    - task: DotNetCoreCLI@2
+      displayName: 'Publish Artifact'
+      inputs:
+        command: 'publish'
+        publishWebProjects: true # Publishes web projects
+        arguments: '--configuration Release --output $(Build.ArtifactStagingDirectory)'
+        zipAfterPublish: true
+
+    - task: PublishBuildArtifacts@1
+      displayName: 'Upload Build Artifacts'
+      inputs:
+        pathToPublish: '$(Build.ArtifactStagingDirectory)'
+        artifactName: 'drop'
