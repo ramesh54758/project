@@ -1,0 +1,54 @@
+trigger:
+- main
+
+pool:
+  name: 'SelfHostedPool'
+
+variables:
+  buildConfiguration: 'Release'
+
+stages:
+- stage: Build
+  displayName: 'Build Stage'
+  jobs:
+  - job: BuildJob
+    displayName: 'Build and Test'
+    steps:
+    - task: UseDotNet@2
+      displayName: 'Install .NET Core SDK'
+      inputs:
+        version: '8.x'
+    - script: dotnet restore
+      displayName: 'Restore dependencies'
+    - script: dotnet build --configuration $(buildConfiguration)
+      displayName: 'Build'
+    - script: dotnet test --no-build --verbosity normal
+      displayName: 'Run Tests'
+    - script: dotnet publish -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)
+      displayName: 'Publish Artifacts'
+    - task: PublishBuildArtifacts@1
+      inputs:
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+        ArtifactName: 'drop'
+        publishLocation: 'Container'
+
+- stage: Deploy
+  displayName: 'Deployment Stage'
+  dependsOn: Build
+  jobs:
+  - deployment: DeployJob
+    displayName: 'Deploy to Azure VM or App Service'
+    environment: 'Dev'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - download: current
+            artifact: drop
+          # Deployment steps go here. Example for Azure Web App:
+          - task: AzureWebApp@1
+            inputs:
+              azureSubscription: 'Ramesh-DevOpsSRVC'
+              appType: 'webApp'
+              appName: 'HelloWorld'
+              package: '$(Pipeline.Workspace)/drop'
