@@ -48,7 +48,7 @@ stages:
           # Deployment steps go here. Example for Azure Web App:
           - task: AzureWebApp@1
             inputs:
-              azureSubscription: '<your-azure-connection-service>'
+              azureSubscription: 'Ramesh-DevOpsSRVC'
               appType: 'webApp'
               appName: '<your-app-service-name>'
               package: '$(Pipeline.Workspace)/drop'
