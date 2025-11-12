@@ -50,5 +50,5 @@ stages:
             inputs:
               azureSubscription: 'Ramesh-DevOpsSRVC'
               appType: 'webApp'
-              appName: '<your-app-service-name>'
+              appName: 'HelloWorld'
               package: '$(Pipeline.Workspace)/drop'
