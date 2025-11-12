@@ -1,46 +1,54 @@
 trigger:
-  branches:
-    include:
-      - master # Triggers the pipeline on pushes to the master branch
+- main
 
 pool:
-  vmImage: 'windows-latest' # Specifies the virtual machine image for the agent
+  vmImage: 'windows-latest'
+
+variables:
+  buildConfiguration: 'Release'
 
 stages:
 - stage: Build
   displayName: 'Build Stage'
   jobs:
   - job: BuildJob
-    displayName: 'Build C# Project'
+    displayName: 'Build and Test'
     steps:
     - task: UseDotNet@2
-      displayName: 'Install .NET SDK'
+      displayName: 'Install .NET Core SDK'
       inputs:
-        packageType: 'sdk'
-        version: '8.x' # Installs the latest .NET 8 SDK
-        installationPath: '$(Agent.ToolsDirectory)/dotnet'
-
-    - script: |
-        dotnet restore
-        dotnet build --configuration Release
-      displayName: 'Restore and Build Solution'
-
-    - task: DotNetCoreCLI@2
+        version: '8.x'
+    - script: dotnet restore
+      displayName: 'Restore dependencies'
+    - script: dotnet build --configuration $(buildConfiguration)
+      displayName: 'Build'
+    - script: dotnet test --no-build --verbosity normal
       displayName: 'Run Tests'
-      inputs:
-        command: 'test'
-        projects: '**/HelloWorld.csproj' # Runs tests in projects ending with Tests.csproj
-
-    - task: DotNetCoreCLI@2
-      displayName: 'Publish Artifact'
-      inputs:
-        command: 'publish'
-        publishWebProjects: true # Publishes web projects
-        arguments: '--configuration Release --output $(Build.ArtifactStagingDirectory)'
-        zipAfterPublish: true
-
+    - script: dotnet publish -c $(buildConfiguration) -o $(Build.ArtifactStagingDirectory)
+      displayName: 'Publish Artifacts'
     - task: PublishBuildArtifacts@1
-      displayName: 'Upload Build Artifacts'
       inputs:
-        pathToPublish: '$(Build.ArtifactStagingDirectory)'
-        artifactName: 'drop'
+        PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+        ArtifactName: 'drop'
+        publishLocation: 'Container'
+
+- stage: Deploy
+  displayName: 'Deployment Stage'
+  dependsOn: Build
+  jobs:
+  - deployment: DeployJob
+    displayName: 'Deploy to Azure VM or App Service'
+    environment: 'Dev'
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - download: current
+            artifact: drop
+          # Deployment steps go here. Example for Azure Web App:
+          - task: AzureWebApp@1
+            inputs:
+              azureSubscription: '<your-azure-connection-service>'
+              appType: 'webApp'
+              appName: '<your-app-service-name>'
+              package: '$(Pipeline.Workspace)/drop'
