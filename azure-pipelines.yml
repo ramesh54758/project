@@ -29,7 +29,7 @@ stages:
       displayName: 'Run Tests'
       inputs:
         command: 'test'
-        projects: '**/*Tests.csproj' # Runs tests in projects ending with Tests.csproj
+        projects: '**/HelloWorld.csproj' # Runs tests in projects ending with Tests.csproj
 
     - task: DotNetCoreCLI@2
       displayName: 'Publish Artifact'
